@@ -213,6 +213,10 @@ class FrankaEnv(gym.Env):
 
     def step(self, action):
         #Each time step is called results in a new "iteration"
+        if (self.idx + 1) % 100 == 0:
+            #Write the results to a csv
+            self.logger.to_csv("timing_data.csv")
+            
         print(f"Creating logger for {self.idx}th iteration")
         self.iter_l = self.logger.log_section(f"{self.idx}", Container)
         self.idx += 1
