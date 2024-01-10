@@ -13,6 +13,7 @@ from gym_franka.rewards import REWARD_FUNCTIONS
 
 import omegaconf
 from networked_robotics_benchmarking.networks import ZMQ_Pair
+from networked_robotics_benchmarking.metrics import Container, Timer, Timing, Value, Message
 
 BUFFER_SIZE = 1024
 
@@ -40,6 +41,11 @@ class FrankaEnv(gym.Env):
         self.net_config = omegaconf.OmegaConf.load("net_config.yaml")
         self.network = ZMQ_Pair("client", **self.net_config)
 
+        #benchmarking setup
+        self.logger = Container("logger")
+        self.iter_l = None
+        self.idx = 0
+
         # Image observation settings
         self.realsense = RealSense(serial_numbers=realsense_sn)
         self.height = height
@@ -65,7 +71,12 @@ class FrankaEnv(gym.Env):
         return [seed]
 
     def wait_for_response(self, timestamp):
-        data = self.network.recv("server")
+        recv_msg : Message = self.network.recv("server")
+        recv_msg.logger.end_sub("server-to-client")
+
+        self.iter_l.copy_from(recv_msg.logger)
+
+        data = recv_msg.data
         return data.split(' ')[0]
         """
         while True:
@@ -176,7 +187,10 @@ class FrankaEnv(gym.Env):
         timed_command = f'{command} {timestamp}'
 
         #self.server_socket.send(timed_command.encode('utf8'))
-        self.network.send("server", timed_command)
+
+        #pack a message
+        msg : Message = Message(timed_command, self.iter_l.log_section("client-to-server"))
+        self.network.send("server", msg)
 
         response = self.wait_for_response(timestamp)
         if response == '<Reflex>':
@@ -198,6 +212,11 @@ class FrankaEnv(gym.Env):
         self.rotation = self.previous_rotation
 
     def step(self, action):
+        #Each time step is called results in a new "iteration"
+        print(f"Creating logger for {self.idx}th iteration")
+        self.iter_l = self.logger.log_section(f"{self.idx}", Container)
+        self.idx += 1
+
         if not self.blocking:
             self.step_lock.acquire()
         action = np.array(action)
