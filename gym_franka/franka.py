@@ -43,7 +43,7 @@ class FrankaEnv(gym.Env):
 
         #benchmarking setup
         self.logger = Container("logger")
-        self.iter_l = self.logger.log_section("1", Container)
+        self.iter_l = self.logger.log_section("0", Container)
         self.idx = 1
 
         # Image observation settings
