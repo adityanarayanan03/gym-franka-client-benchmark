@@ -189,7 +189,7 @@ class FrankaEnv(gym.Env):
         #self.server_socket.send(timed_command.encode('utf8'))
 
         #pack a message
-        self.iter_l.log_section("client-to-server")
+        self.iter_l.log_section("client-to-server", Timer)
         msg : Message = Message(timed_command, self.iter_l)
         self.network.send("server", msg)
 
