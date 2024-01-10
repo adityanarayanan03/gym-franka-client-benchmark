@@ -1,0 +1,3 @@
+devices:
+  "server": "server-ip"
+  "client": "client-ip"

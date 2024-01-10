@@ -11,9 +11,10 @@ from gym.envs.registration import register
 from gym_franka.realsense import RealSense
 from gym_franka.rewards import REWARD_FUNCTIONS
 
+import omegaconf
+from networked_robotics_benchmarking.networks import ZMQ_Pair
 
 BUFFER_SIZE = 1024
-
 
 class FrankaEnv(gym.Env):
     def __init__(self, server_address, server_port, task,
@@ -34,8 +35,10 @@ class FrankaEnv(gym.Env):
         self.gripper_action = 1
 
         # Connect to gym-franka-server
-        self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.server_socket.connect((server_address, server_port))
+        #self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        #self.server_socket.connect((server_address, server_port))
+        self.net_config = omegaconf.OmegaConf.load("net_config.yaml")
+        self.network = ZMQ_Pair("client", **self.net_config)
 
         # Image observation settings
         self.realsense = RealSense(serial_numbers=realsense_sn)
@@ -62,6 +65,9 @@ class FrankaEnv(gym.Env):
         return [seed]
 
     def wait_for_response(self, timestamp):
+        data = self.network.recv("server")
+        return data.split(' ')[0]
+        """
         while True:
             try:
                 data = self.server_socket.recv(BUFFER_SIZE)
@@ -76,6 +82,7 @@ class FrankaEnv(gym.Env):
                 pass
             except ConnectionResetError:
                 return False
+        """
 
     def reset(self):
         if not self.init:
@@ -86,7 +93,10 @@ class FrankaEnv(gym.Env):
         while True:
             timestamp = time.time_ns()
             reset_command = f'<Reset> {timestamp}'
-            self.server_socket.send(reset_command.encode('utf8'))
+
+            #self.server_socket.send(reset_command.encode('utf8'))
+            self.network.send("server", reset_command)
+
             self.position = self.position_origin.copy()
             self.rotation = pqt.Quaternion(self.rotation_origin)
             self.previous_position = self.position
@@ -150,10 +160,12 @@ class FrankaEnv(gym.Env):
         self.move_hard_code(new_position)
 
     def close_gripper(self):
-        self.server_socket.send(b'<Grasp>')
+        #self.server_socket.send(b'<Grasp>')
+        self.network.send("server", "<Grasp>")
 
     def open_gripper(self):
-        self.server_socket.send(b'<Open>')
+        #self.server_socket.send(b'<Open>')
+        self.network.send("server", "<Open>")
 
     def send_move_command(self, wait=True):
         command_key = '<Step-Wait>' if wait else '<Step>'
@@ -162,7 +174,10 @@ class FrankaEnv(gym.Env):
                   f'{self.gripper_action:.6f}'
         timestamp = time.time_ns()
         timed_command = f'{command} {timestamp}'
-        self.server_socket.send(timed_command.encode('utf8'))
+
+        #self.server_socket.send(timed_command.encode('utf8'))
+        self.network.send("server", timed_command)
+
         response = self.wait_for_response(timestamp)
         if response == '<Reflex>':
             print('[gym-franka-FrankaEnv] Reflex corrected.')
