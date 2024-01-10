@@ -189,7 +189,8 @@ class FrankaEnv(gym.Env):
         #self.server_socket.send(timed_command.encode('utf8'))
 
         #pack a message
-        msg : Message = Message(timed_command, self.iter_l.log_section("client-to-server"))
+        self.iter_l.log_section("client-to-server")
+        msg : Message = Message(timed_command, self.iter_l)
         self.network.send("server", msg)
 
         response = self.wait_for_response(timestamp)
@@ -216,7 +217,7 @@ class FrankaEnv(gym.Env):
         if (self.idx + 1) % 100 == 0:
             #Write the results to a csv
             self.logger.to_csv("timing_data.csv")
-            
+
         print(f"Creating logger for {self.idx}th iteration")
         self.iter_l = self.logger.log_section(f"{self.idx}", Container)
         self.idx += 1
