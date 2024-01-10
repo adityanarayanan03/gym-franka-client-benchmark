@@ -43,8 +43,8 @@ class FrankaEnv(gym.Env):
 
         #benchmarking setup
         self.logger = Container("logger")
-        self.iter_l = None
-        self.idx = 0
+        self.iter_l = self.logger.log_section("1", Container)
+        self.idx = 1
 
         # Image observation settings
         self.realsense = RealSense(serial_numbers=realsense_sn)
@@ -106,7 +106,9 @@ class FrankaEnv(gym.Env):
             reset_command = f'<Reset> {timestamp}'
 
             #self.server_socket.send(reset_command.encode('utf8'))
-            self.network.send("server", reset_command)
+            self.iter_l.log_section("client-to-server", Timer)
+            msg : Message = Message(reset_command, self.iter_l)
+            self.network.send("server", msg)
 
             self.position = self.position_origin.copy()
             self.rotation = pqt.Quaternion(self.rotation_origin)
@@ -172,11 +174,15 @@ class FrankaEnv(gym.Env):
 
     def close_gripper(self):
         #self.server_socket.send(b'<Grasp>')
-        self.network.send("server", "<Grasp>")
+        self.iter_l.log_section("client-to-server", Timer)
+        msg : Message = Message("<Grasp>", self.iter_l)
+        self.network.send("server", msg)
 
     def open_gripper(self):
         #self.server_socket.send(b'<Open>')
-        self.network.send("server", "<Open>")
+        self.iter_l.log_section("client-to-server", Timer)
+        msg : Message = Message("<Open>", self.iter_l)
+        self.network.send("server", msg)
 
     def send_move_command(self, wait=True):
         command_key = '<Step-Wait>' if wait else '<Step>'
