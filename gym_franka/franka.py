@@ -77,7 +77,7 @@ class FrankaEnv(gym.Env):
         self.iter_l.copy_from(recv_msg.logger)
 
         data = recv_msg.data
-        return data.split(' ')[0]
+        return data.split(' ')
         """
         while True:
             try:
